@@ -47,6 +47,9 @@ Outlier textures = ['textures/football-no-lines.png', 'textures/wood-pattern.png
 
 **Total Images = 10398**
 
+## Goal
+Any diversity-enhancing GAN or NovelGAN should be able to generate images with any of the outliers property or combination between the normal and anomaly property that doesn't exist in the dataset.
+
 
 
 ## Preview
