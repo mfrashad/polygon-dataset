@@ -3,35 +3,30 @@ const p5 = require('node-p5');
 const WIDTH = 256
 const HEIGHT = 256
 const CENTER = WIDTH/2
-const OUTER_RADIUS = WIDTH - 20
+const OUTER_RADIUS = WIDTH/2
 const INNER_RADIUS = OUTER_RADIUS/2
 const OUTPUT_DIR = 'result'
-const ANOMALY_COLORS = ['blue']
-const NORMAL_COLORS = ['red', 'yellow', 'brown', 'green', 'pink', 'grey', 'orange', 'purple', 'black']
+
+
+
+const ANOMALY_COLORS = ['blue', 'green', 'lime']
+const NORMAL_COLORS = ['red', 'yellow', 'pink', 'grey', 'purple', 'magenta', 'aqua']
 const NORMAL_TEXTURES = [
-  'textures/arabesque.png',
-  'textures/argyle.png',
+  'textures/woven.png',
+  'textures/diagonal-striped-brick.png',
   'textures/basketball.png',
-  'textures/black-scales.png',
-  'textures/black-thread.png',
-  'textures/dark-mosaic.png',
-  'textures/dark-wood.png',
-  'textures/diagmonds.png',
+  'textures/vaio.png',
+  'textures/3px-tile.png'
 ]
-const ANOMALY_TEXTURES = ['textures/football-no-lines.png']
+const ANOMALY_TEXTURES = ['textures/football-no-lines.png', 'textures/wood-pattern.png']
 
-let anomaly_shapes = ['circle']
-let normal_shapes = []
+let anomaly_shapes = ['circle', 'star10', 'poly3']
+let normal_shapes = ['square', 'poly4', 'star4', 'poly6', 'star6', 'poly8', 'star8']
 
-for (i=3; i<=8; i++){
-  normal_shapes.push(`poly${i}`)
-  normal_shapes.push(`star${i}`)
-}
-
-let anomaly_colors = []
-let normal_colors = []
-
-let current_canvas
+// for (i=4; i<=6; i++){
+//   normal_shapes.push(`poly${i}`)
+//   normal_shapes.push(`star${i}`)
+// }
 
 
 let resourcesToPreload = {}
@@ -42,31 +37,6 @@ for(x of NORMAL_TEXTURES){
 
 for(x of ANOMALY_TEXTURES){
   resourcesToPreload[x] = p5.loadImage(x)
-}
-
-function sketch(p, preloaded) {
-  let normal_textures = []
-  let anomaly_textures = []
-
-  for(x of NORMAL_TEXTURES){
-    normal_textures.push(preloaded[x])
-  }
-  for(x of ANOMALY_TEXTURES){
-    anomaly_textures.push(preloaded[x])
-  }
-
-  p.setup = () => {
-
-    let canvas = p.createCanvas(WIDTH, HEIGHT);
-    //generate(p, 'poly5', 'star8', 80, 50, normal_colors[1], normal_colors[0], normal_textures[5])
-    //generate_combinations(p, canvas, normal_shapes, normal_shapes, normal_colors, normal_colors, normal_textures)
-    generate_combinations(p, canvas, anomaly_shapes, anomaly_shapes, ANOMALY_COLORS, ANOMALY_COLORS, anomaly_textures)
-    // p.saveCanvas(canvas, 'result/out', 'png').then(() => {
-    //   console.log('saved canvas as out.png');
-    // }).catch(console.error)
-
-    p.noLoop();
-  }
 }
 
 function apply_texture(p, texture_image){
@@ -95,12 +65,15 @@ function apply_texture(p, texture_image){
 function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, textures) {
   console.log(shapes1.length)
   console.log(colors1.length)
-  n_combination = shapes1.length * shapes2.length * colors1.length * colors2.length * textures.length
-  console.log(`Combinations: ${shapes1.length} * ${shapes2.length} * ${colors1.length} * ${colors2.length} * ${textures.length} = ${n_combination}`)
+  n_combination = shapes1.length * shapes2.length * colors1.length * (colors2.length -1) * textures.length
+  console.log(`Combinations: ${shapes1.length} * ${shapes2.length} * ${colors1.length} * ${colors2.length - 1} * ${textures.length} = ${n_combination}`)
   for (outer_shape of shapes1) {
     for (inner_shape of shapes2){
       for(outer_color of colors1) {
         for (inner_color of colors2) {
+          if(inner_color == outer_color){
+            continue
+          }
           for ([l, img_texture] of textures.entries()) {
             generate(p, outer_shape, inner_shape, OUTER_RADIUS, INNER_RADIUS, outer_color, inner_color, img_texture)
             const filename = `${OUTPUT_DIR}/outer_${outer_color}_${outer_shape}_inner_${inner_color}_${inner_shape}_texture${l}`
@@ -127,6 +100,9 @@ function draw_shape(p, shape, radius, x=CENTER, y=CENTER) {
   let n = 3
   if (shape == 'circle') {
     p.circle(x, y, radius)
+  }
+  else if (shape == 'square'){
+    p.square(x - (radius/2), y - (radius/2), radius)
   }
   else if (shape.startsWith('poly')){
     n = shape.split('poly').pop()
@@ -164,5 +140,30 @@ function star(p, x, y, radius1, radius2, npoints) {
   p.endShape(p.CLOSE);
 }
 
+
+function sketch(p, preloaded) {
+  let normal_textures = []
+  let anomaly_textures = []
+
+  for(x of NORMAL_TEXTURES){
+    normal_textures.push(preloaded[x])
+  }
+  for(x of ANOMALY_TEXTURES){
+    anomaly_textures.push(preloaded[x])
+  }
+
+  p.setup = () => {
+
+    let canvas = p.createCanvas(WIDTH, HEIGHT);
+
+    // Create normal images
+    generate_combinations(p, canvas, normal_shapes, normal_shapes, NORMAL_COLORS, NORMAL_COLORS, normal_textures)
+
+    // Create outlier images
+    generate_combinations(p, canvas, anomaly_shapes, anomaly_shapes, ANOMALY_COLORS, ANOMALY_COLORS, anomaly_textures)
+
+    p.noLoop();
+  }
+}
 
 let p5Instance = p5.createSketch(sketch, resourcesToPreload);
