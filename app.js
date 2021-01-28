@@ -18,7 +18,7 @@ const NORMAL_TEXTURES = [
   'textures/vaio.png',
   'textures/3px-tile.png'
 ]
-const ANOMALY_TEXTURES = ['textures/football-no-lines.png', 'textures/wood-pattern.png']
+const ANOMALY_TEXTURES = ['textures/wood-pattern.png']
 
 let anomaly_shapes = ['circle', 'star10', 'poly3']
 let normal_shapes = ['square', 'poly4', 'star4', 'poly6', 'star6', 'poly8', 'star8']
@@ -62,7 +62,7 @@ function apply_texture(p, texture_image){
   p.updatePixels()
 }
 
-function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, textures) {
+function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, textures, prefix='') {
   console.log(shapes1.length)
   console.log(colors1.length)
   n_combination = shapes1.length * shapes2.length * colors1.length * (colors2.length -1) * textures.length
@@ -76,7 +76,7 @@ function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, te
           }
           for ([l, img_texture] of textures.entries()) {
             generate(p, outer_shape, inner_shape, OUTER_RADIUS, INNER_RADIUS, outer_color, inner_color, img_texture)
-            const filename = `${OUTPUT_DIR}/outer_${outer_color}_${outer_shape}_inner_${inner_color}_${inner_shape}_texture${l}`
+            const filename = `${OUTPUT_DIR}/${prefix}outer_${outer_color}_${outer_shape}_inner_${inner_color}_${inner_shape}_texture${l}`
             p.saveCanvas(canvas, filename, 'png')
               .then(() => console.log(`Saved ${filename}`))
               .catch(console.error)
@@ -157,10 +157,27 @@ function sketch(p, preloaded) {
     let canvas = p.createCanvas(WIDTH, HEIGHT);
 
     // Create normal images
-    generate_combinations(p, canvas, normal_shapes, normal_shapes, NORMAL_COLORS, NORMAL_COLORS, normal_textures)
+    
+
+    for (anomaly of anomaly_shapes) {
+      console.log(`Generating anomalies: ${anomaly}`)
+      generate_combinations(p, canvas, normal_shapes, [anomaly], ['red', 'yellow', 'pink'], NORMAL_COLORS, normal_textures, prefix='anomaly_')
+    }
+    for (anomaly of ANOMALY_COLORS) {
+      console.log(`Generating anomalies: ${anomaly}`)
+      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], [anomaly], normal_textures, prefix='anomaly_')
+    }
+    for (anomaly of anomaly_textures) {
+      console.log('Generating anomalies: textures')
+      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], NORMAL_COLORS, [anomaly], prefix='anomaly_')
+    }
+
+    generate_combinations(p, canvas, normal_shapes, normal_shapes, NORMAL_COLORS, NORMAL_COLORS, normal_textures, prefix='normal_')
 
     // Create outlier images
-    generate_combinations(p, canvas, anomaly_shapes, anomaly_shapes, ANOMALY_COLORS, ANOMALY_COLORS, anomaly_textures)
+    // for (i=0; i<anomaly_shapes.length; i++){
+    //   generate_combinations(p, canvas, normal_shapes[i], anomaly_shapes[i], NORMAL_COLORS, NORMAL_COLORS, NORMAL_TEXTURES)
+    // }
 
     p.noLoop();
   }
