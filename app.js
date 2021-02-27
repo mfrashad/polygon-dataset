@@ -1,11 +1,12 @@
 const p5 = require('node-p5');
+const fs = require('fs');
 
 const WIDTH = 256
 const HEIGHT = 256
 const CENTER = WIDTH/2
 const OUTER_RADIUS = WIDTH/2
 const INNER_RADIUS = OUTER_RADIUS/2
-const OUTPUT_DIR = 'result'
+const OUTPUT_DIR = 'polygon'
 
 
 
@@ -62,11 +63,11 @@ function apply_texture(p, texture_image){
   p.updatePixels()
 }
 
-function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, textures, prefix='') {
+function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, textures, texture_names, anomaly="", prefix='') {
   console.log(shapes1.length)
   console.log(colors1.length)
-  n_combination = shapes1.length * shapes2.length * colors1.length * (colors2.length -1) * textures.length
-  console.log(`Combinations: ${shapes1.length} * ${shapes2.length} * ${colors1.length} * ${colors2.length - 1} * ${textures.length} = ${n_combination}`)
+  n_combination = shapes1.length * shapes2.length * colors1.length * (colors2.length) * textures.length
+  console.log(`Combinations: ${shapes1.length} * ${shapes2.length} * ${colors1.length} * ${colors2.length} * ${textures.length} = ${n_combination}`)
   for (outer_shape of shapes1) {
     for (inner_shape of shapes2){
       for(outer_color of colors1) {
@@ -74,12 +75,22 @@ function generate_combinations(p, canvas, shapes1, shapes2, colors1, colors2, te
           if(inner_color == outer_color){
             continue
           }
-          for ([l, img_texture] of textures.entries()) {
+          for ([i, img_texture] of textures.entries()) {
+            texture_name = texture_names[i]
             generate(p, outer_shape, inner_shape, OUTER_RADIUS, INNER_RADIUS, outer_color, inner_color, img_texture)
-            const filename = `${OUTPUT_DIR}/${prefix}outer_${outer_color}_${outer_shape}_inner_${inner_color}_${inner_shape}_texture${l}`
-            p.saveCanvas(canvas, filename, 'png')
-              .then(() => console.log(`Saved ${filename}`))
+            const filename = `${prefix}outer_${outer_color}_${outer_shape}_inner_${inner_color}_${inner_shape}_texture_${texture_name}`
+            p.saveCanvas(canvas, `${OUTPUT_DIR}/images/${filename}`, 'png')
+              //.then(() =>console.log(`Saved ${filename}`))
               .catch(console.error)
+            
+            generate_mask(p, canvas, inner_shape, true, `${OUTPUT_DIR}/masks/inner`, filename)
+            generate_mask(p, canvas, outer_shape, false, `${OUTPUT_DIR}/masks/outer`, filename)
+            if (anomaly != ""){
+              anomaly_shape = anomaly == 'inner' ? inner_shape : outer_shape
+              generate_mask(p, canvas, anomaly_shape,  anomaly == 'inner', `${OUTPUT_DIR}/anomaly_masks`, filename)
+            }
+            
+
           }
         }
       }
@@ -94,6 +105,17 @@ function generate(p, outer_shape, inner_shape, outer_size, inner_size, outer_col
   p.fill(p.color(inner_color))
   draw_shape(p, inner_shape, inner_size)
   apply_texture(p, img_texture)
+}
+
+function generate_mask(p, canvas, shape, inner, dir, filename){
+  p.background('black')
+  p.fill(p.color('white'))
+  let radius
+  radius = inner ? INNER_RADIUS : OUTER_RADIUS
+  draw_shape(p, shape, radius)
+  p.saveCanvas(canvas, `${dir}/${filename}`, 'png')
+              //.then(() =>console.log(`Saved ${filename}`))
+              .catch(console.error)
 }
 
 function draw_shape(p, shape, radius, x=CENTER, y=CENTER) {
@@ -144,37 +166,51 @@ function star(p, x, y, radius1, radius2, npoints) {
 function sketch(p, preloaded) {
   let normal_textures = []
   let anomaly_textures = []
+  let normal_texture_names = []
+  let anomaly_texture_names = []
 
   for(x of NORMAL_TEXTURES){
     normal_textures.push(preloaded[x])
+    // Get filename without extension, replace - with _
+    normal_texture_names.push(x.split("/")[1].split('.')[0].replace(/-/g, ""))
   }
   for(x of ANOMALY_TEXTURES){
     anomaly_textures.push(preloaded[x])
+    anomaly_texture_names.push(x.split("/")[1].split('.')[0].replace(/-/g, ""))
   }
+
+  console.log(anomaly_texture_names)
+  console.log(normal_texture_names)
 
   p.setup = () => {
 
     let canvas = p.createCanvas(WIDTH, HEIGHT);
 
+    fs.mkdirSync(`${OUTPUT_DIR}/images`, { recursive: true })
+    fs.mkdirSync(`${OUTPUT_DIR}/masks/inner`, { recursive: true })
+    fs.mkdirSync(`${OUTPUT_DIR}/masks/outer`, { recursive: true })
+    fs.mkdirSync(`${OUTPUT_DIR}/anomaly_masks`, { recursive: true })
     // Create normal images
+
+
     
 
     for (anomaly of anomaly_shapes) {
       console.log(`Generating anomalies: ${anomaly}`)
-      generate_combinations(p, canvas, normal_shapes, [anomaly], ['red', 'yellow', 'pink'], NORMAL_COLORS, normal_textures, prefix='anomaly_')
+      generate_combinations(p, canvas, normal_shapes, [anomaly], ['red', 'yellow', 'pink'], NORMAL_COLORS, normal_textures, normal_texture_names, anomaly='inner', prefix='anomaly_')
     }
     for (anomaly of ANOMALY_COLORS) {
       console.log(`Generating anomalies: ${anomaly}`)
-      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], [anomaly], normal_textures, prefix='anomaly_')
+      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], [anomaly], normal_textures, normal_texture_names, anomaly='inner', prefix='anomaly_')
     }
     for (anomaly of anomaly_textures) {
       console.log('Generating anomalies: textures')
-      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], NORMAL_COLORS, [anomaly], prefix='anomaly_')
+      generate_combinations(p, canvas, normal_shapes, normal_shapes, ['red', 'yellow', 'pink'], NORMAL_COLORS, [anomaly], anomaly_texture_names, anomaly='outer', prefix='anomaly_')
     }
 
-    generate_combinations(p, canvas, normal_shapes, normal_shapes, NORMAL_COLORS, NORMAL_COLORS, normal_textures, prefix='normal_')
+    generate_combinations(p, canvas, normal_shapes, normal_shapes, NORMAL_COLORS, NORMAL_COLORS, normal_textures, normal_texture_names, prefix='normal_')
 
-    // Create outlier images
+    //Create outlier images
     // for (i=0; i<anomaly_shapes.length; i++){
     //   generate_combinations(p, canvas, normal_shapes[i], anomaly_shapes[i], NORMAL_COLORS, NORMAL_COLORS, NORMAL_TEXTURES)
     // }
